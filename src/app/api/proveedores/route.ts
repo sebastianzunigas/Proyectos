@@ -1,0 +1,54 @@
+import { NextResponse } from "next/server";
+import { getTursoClient } from "@/lib/turso";
+
+export async function GET() {
+  try {
+    const client = getTursoClient();
+    const result = await client.execute("SELECT * FROM proveedores ORDER BY nombre ASC");
+    return NextResponse.json({ success: true, data: result.rows });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const client = getTursoClient();
+    const id = body.id || `prov_${Date.now()}`;
+
+    await client.execute({
+      sql: `
+        INSERT INTO proveedores (id, empresa_id, rut_identificador, nombre, contacto, telefono, email, direccion)
+        VALUES (?, 'emp_default', ?, ?, ?, ?, ?, ?)
+      `,
+      args: [
+        id,
+        body.rut_identificador || "",
+        body.nombre,
+        body.contacto || "",
+        body.telefono || "",
+        body.email || "",
+        body.direccion || ""
+      ]
+    });
+
+    return NextResponse.json({ success: true, data: { id, ...body } });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id) return NextResponse.json({ success: false, error: "ID requerido" }, { status: 400 });
+
+    const client = getTursoClient();
+    await client.execute({ sql: "DELETE FROM proveedores WHERE id = ?", args: [id] });
+    return NextResponse.json({ success: true, message: "Proveedor eliminado" });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
